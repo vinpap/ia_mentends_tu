@@ -10,17 +10,21 @@ Created on Mon Oct 24 20:51:47 2022
 import numpy as np
 from sklearn import preprocessing
 from sklearn import svm
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, ConfusionMatrixDisplay
 import pickle
 from joblib import dump
 from features_functions import compute_features
 
 
+count = 100
+learningFeatures = False
 
-# LOOP OVER THE SIGNALS
-#for all signals:
-    # Get an input signal
-    file = open("Data/{}".format(FILENAME), 'rb')
+for s in range(1, count+1):
+
+    file = open(f"data/{s}.pkl", 'rb')
     input_sig = pickle.load(file)
+
 
     # Compute the signal in three domains
     sig_sq = input_sig**2
@@ -34,10 +38,14 @@ from features_functions import compute_features
     features_vector = np.array(features_list)[np.newaxis,:]
 
     # Store the obtained features in a np.arrays
-    learningFeatures = # 2D np.array with features_vector in it, for each signal
+    if type(learningFeatures) == bool: learningFeatures = features_vector.copy()
+    else: learningFeatures = np.append(learningFeatures, features_vector, axis=0)
 
-    # Store the labels
-    learningLabels = # np.array with labels in it, for each signal
+# Store the labels
+with open("data/labels.pkl", "rb") as labels_file:
+    learningLabels = pickle.load(labels_file) # np.array with labels in it, for each signal
+    learningLabels = learningLabels[:count]
+    
 
 # Encode the class names
 labelEncoder = preprocessing.LabelEncoder().fit(learningLabels)
@@ -47,7 +55,18 @@ learningLabelsStd = labelEncoder.transform(learningLabels)
 model = svm.SVC(C=10, kernel='linear', class_weight=None, probability=False)
 scaler = preprocessing.StandardScaler(with_mean=True).fit(learningFeatures)
 learningFeatures_scaled = scaler.transform(learningFeatures)
-model.fit(learningFeatures_scaled, learningLabelsStd)
+
+
+x_train, x_test, y_train, y_test = train_test_split(
+    learningFeatures_scaled, learningLabelsStd, test_size=0.3, shuffle=False
+)
+model.fit(x_train, y_train)
+y_pred = model.predict(x_test)
+print(
+    f"Classification report for classifier {model}:\n"
+    f"{classification_report(y_test, y_pred)}\n"
+)
+
 
 # Export the scaler and model on disk
 dump(scaler, "SCALER")
